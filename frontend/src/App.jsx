@@ -7,11 +7,15 @@ import Dashboard from './pages/Dashboard';
 import Categories from './pages/Categories';
 import Products from './pages/Products';
 import Inventory from './pages/Inventory';
+import StockMovements from './pages/StockMovements';
 
 // Minimal placeholder screens outside the dashboard shell.
 const AdminOnly = () => <div className="p-8">Admin-only area</div>;
+
 const Unauthorized = () => (
-  <div className="p-8 text-red-600">You don&apos;t have access to this page.</div>
+  <div className="p-8 text-red-600">
+    You don&apos;t have access to this page.
+  </div>
 );
 
 const App = () => {
@@ -28,9 +32,10 @@ const App = () => {
           <Route path="/categories" element={<Categories />} />
           <Route path="/products" element={<Products />} />
           <Route path="/inventory" element={<Inventory />} />
+          <Route path="/stock-movements" element={<StockMovements />} />
+
           {/* Sales, Purchases, Customers, Suppliers, Expenses, Reports,
-              Settings routes are added here as each of those modules is
-              built. The sidebar already links to their paths. */}
+              Settings routes are added here as each module is built. */}
         </Route>
       </Route>
 
