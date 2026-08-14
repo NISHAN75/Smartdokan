@@ -38,6 +38,34 @@ const assertSkuAvailable = async (sku, companyId, excludeId) => {
     throw new AppError('A product with this SKU already exists', 409);
   }
 };
+// Validates purchasePrice is present, numeric, and non-negative.
+// Accepts number or numeric-string input (form fields arrive as strings)
+// and returns the coerced Number for storage.
+const validatePurchasePrice = (rawValue) => {
+  if (rawValue === undefined || rawValue === null || rawValue === '') {
+    throw new AppError('Purchase price is required', 400);
+  }
+
+  const value = Number(rawValue);
+  if (Number.isNaN(value)) {
+    throw new AppError('Purchase price must be a valid number', 400);
+  }
+  if (value < 0) {
+    throw new AppError('Purchase price cannot be negative', 400);
+  }
+
+  return value;
+};
+const assertBarcodeAvailable = async (barcode, companyId, excludeId) => {
+  const duplicate = await Product.findOne({
+    ...(excludeId ? { _id: { $ne: excludeId } } : {}),
+    companyId,
+    barcode: { $regex: `^${escapeRegex(barcode)}$`, $options: 'i' },
+  });
+  if (duplicate) {
+    throw new AppError('A product with this barcode already exists', 409);
+  }
+};
 
 /**
  * @desc    Create a product
@@ -45,7 +73,7 @@ const assertSkuAvailable = async (sku, companyId, excludeId) => {
  * @access  Private (any authenticated user)
  */
 export const createProduct = asyncHandler(async (req, res) => {
-  const { name, sku, categoryId, description, status } = req.body;
+  const { name, sku, barcode, categoryId, description, status, purchasePrice } = req.body;
 
   if (!name || !name.trim()) {
     throw new AppError('Product name is required', 400);
@@ -53,19 +81,26 @@ export const createProduct = asyncHandler(async (req, res) => {
   if (!sku || !sku.trim()) {
     throw new AppError('SKU is required', 400);
   }
+  
   if (status && !ALLOWED_STATUSES.includes(status)) {
     throw new AppError(`Status must be one of: ${ALLOWED_STATUSES.join(', ')}`, 400);
   }
 
   const { companyId } = getScope(req);
+  const validatedPurchasePrice = validatePurchasePrice(purchasePrice);
   const trimmedName = name.trim();
   const trimmedSku = sku.trim();
+  const trimmedBarcode = barcode?.trim() || undefined;
 
   // Validates the category exists and belongs to this company scope —
   // also catches a malformed categoryId via Mongo's CastError, which
   // the existing errorHandler already turns into a clean 400.
   await assertCategoryInScope(categoryId, companyId);
+  
   await assertSkuAvailable(trimmedSku, companyId);
+  if (trimmedBarcode) {
+    await assertBarcodeAvailable(trimmedBarcode, companyId);
+  }
 
 
   const existing = await Product.findOne({
@@ -79,6 +114,8 @@ export const createProduct = asyncHandler(async (req, res) => {
   const product = await Product.create({
     name: trimmedName,
     sku: trimmedSku,
+    barcode: trimmedBarcode,
+    purchasePrice: validatedPurchasePrice,
     categoryId,
     description: description?.trim() || '',
     status: status || 'active',
@@ -115,7 +152,7 @@ export const getProducts = asyncHandler(async (req, res) => {
     { companyId },
     queryStringForFilters
   )
-    .search(['name', 'description', 'sku']) 
+    .search(['name', 'description', 'sku','barcode']) 
     .applyFilters(['status', 'categoryId'])
     .build();
 
@@ -165,9 +202,8 @@ export const getProductById = asyncHandler(async (req, res) => {
  * @access  Private (any authenticated user)
  */
 export const updateProduct = asyncHandler(async (req, res) => {
-  const { name, categoryId, description, status } = req.body;
+  const { name, sku, barcode, categoryId, description, status, purchasePrice } = req.body;
   const { companyId } = getScope(req);
-
   const product = await Product.findOne({ _id: req.params.id, companyId });
   if (!product) {
     throw new AppError('Product not found', 404);
@@ -198,6 +234,15 @@ export const updateProduct = asyncHandler(async (req, res) => {
     await assertSkuAvailable(trimmedSku, companyId, product._id);
     product.sku = trimmedSku;
   }
+  if (barcode !== undefined) {
+        const trimmedBarcode = barcode?.trim() || undefined;
+        if (trimmedBarcode) {
+            await assertBarcodeAvailable(trimmedBarcode, companyId, product._id);
+            product.barcode = trimmedBarcode;
+        } else {
+            product.barcode = undefined;
+        }
+  } 
 
   if (categoryId !== undefined) {
     await assertCategoryInScope(categoryId, companyId);
@@ -213,6 +258,9 @@ export const updateProduct = asyncHandler(async (req, res) => {
       throw new AppError(`Status must be one of: ${ALLOWED_STATUSES.join(', ')}`, 400);
     }
     product.status = status;
+  }
+  if (purchasePrice !== undefined) {
+    product.purchasePrice = validatePurchasePrice(purchasePrice);
   }
 
   await product.save();

@@ -32,6 +32,8 @@ export const errorHandler = (err, req, res, next) => {
       message = `An account with this ${field} already exists`;
     } else if (field === 'sku') {
       message = 'A product with this SKU already exists';
+    } else if (field === 'barcode') {
+      message = 'A product with this barcode already exists';   // <-- নতুন
     } else {
       message = `A record with this ${field} already exists`;
     }

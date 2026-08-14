@@ -20,6 +20,17 @@ const productSchema = new mongoose.Schema(
         trim: true,
         maxlength: [50, 'SKU cannot exceed 50 characters'],
     },
+    barcode: {
+        type: String,
+        trim: true,
+        maxlength: [50, 'Barcode cannot exceed 50 characters'],
+    },
+    purchasePrice: {
+      type: Number,
+      required: [true, 'Purchase price is required'],
+      min: [0, 'Purchase price cannot be negative'],
+      default: 0,
+    },
     categoryId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Category',
@@ -70,7 +81,11 @@ const productSchema = new mongoose.Schema(
 // behavior, with no migration needed once companyId is populated.
 productSchema.index(
   { companyId: 1, sku: 1 },
-  { unique: true, collation: { locale: 'en', strength: 2 } }
+  {
+    unique: true,
+    collation: { locale: 'en', strength: 2 },
+    partialFilterExpression: { barcode: { $exists: true } },
+  }
 );
 
 // Products are looked up by category constantly (list filters, future

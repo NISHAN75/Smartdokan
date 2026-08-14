@@ -16,16 +16,16 @@ export const getProductByIdRequest = async (id) => {
   return data.data;
 };
 
-export const createProductRequest = async ({ name, sku, categoryId, description, status }) => {
+export const createProductRequest = async ({ name, sku, barcode, categoryId, description, status, purchasePrice }) => {
   const { data } = await axiosInstance.post('/products', {
-    name, sku, categoryId, description, status,
+    name, sku, barcode, categoryId, description, status, purchasePrice,
   });
   return data.data;
 };
 
-export const updateProductRequest = async ({ id, name, sku, categoryId, description, status }) => {
+export const updateProductRequest = async ({ id, name, sku, barcode, categoryId, description, status, purchasePrice }) => {
   const { data } = await axiosInstance.put(`/products/${id}`, {
-    name, sku, categoryId, description, status,
+    name, sku, barcode, categoryId, description, status, purchasePrice,
   });
   return data.data;
 };

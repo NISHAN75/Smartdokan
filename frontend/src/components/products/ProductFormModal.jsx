@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import Modal from '../ui/Modal';
 import { useCategories } from '../../hooks/useCategories';
 
-const emptyForm = { name: '', sku: '', categoryId: '', description: '', status: 'active' };
+const emptyForm = { name: '', sku: '', barcode: '', purchasePrice: '', categoryId: '', description: '', status: 'active' };
 
 // A generous limit so the dropdown effectively shows "all" categories for
 // a single-shop MVP, without building a separate category-fetching path.
@@ -24,20 +24,31 @@ const ProductFormModal = ({ open, onClose, onSubmit, initialData, isSubmitting }
   const categories = categoryData?.data || [];
 
   // Reset the form whenever the modal opens, and prefill it when editing.
-  useEffect(() => {
-    if (!open) return;
-    setForm(
-      initialData
-        ? {
-            name: initialData.name || '',
-            categoryId: initialData.categoryId?._id || initialData.categoryId || '',
-            description: initialData.description || '',
-            status: initialData.status || 'active',
-          }
-        : emptyForm
-    );
-    setError('');
-  }, [open, initialData]);
+useEffect(() => {
+  if (!open) return;
+
+  setForm(
+    initialData
+      ? {
+          name: initialData.name || '',
+          sku: initialData.sku || '',
+          barcode: initialData.barcode || '',
+          purchasePrice:
+            initialData.purchasePrice !== undefined && initialData.purchasePrice !== null
+              ? String(initialData.purchasePrice)
+              : '',
+          categoryId:
+            initialData.categoryId?._id ||
+            initialData.categoryId ||
+            '',
+          description: initialData.description || '',
+          status: initialData.status || 'active',
+        }
+      : emptyForm
+  );
+
+  setError('');
+}, [open, initialData]);
 
   const handleChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -65,9 +76,29 @@ const ProductFormModal = ({ open, onClose, onSubmit, initialData, isSubmitting }
       setError('Please select a category');
       return;
     }
+    if (form.purchasePrice === '' || form.purchasePrice === null) {
+      setError('Purchase price is required');
+      return;
+    }
+    const numericPurchasePrice = Number(form.purchasePrice);
+    if (Number.isNaN(numericPurchasePrice)) {
+      setError('Purchase price must be a valid number');
+      return;
+    }
+    if (numericPurchasePrice < 0) {
+      setError('Purchase price cannot be negative');
+      return;
+    }
 
     try {
-      await onSubmit({ ...form, name: trimmedName, description: form.description.trim() });
+        await onSubmit({
+        ...form,
+        name: trimmedName,
+        sku: trimmedSku,
+        barcode: form.barcode.trim(), 
+        description: form.description.trim(),
+        purchasePrice: numericPurchasePrice,
+    });
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong. Please try again.');
     }
@@ -106,6 +137,33 @@ const ProductFormModal = ({ open, onClose, onSubmit, initialData, isSubmitting }
                 placeholder="e.g. GR-RICE-001"
                 className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
+        </div>
+        <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+                Barcode <span className="font-normal text-slate-400">(optional)</span>
+            </label>
+            <input
+                type="text"
+                name="barcode"
+                value={form.barcode}
+                onChange={handleChange}
+                placeholder="e.g. 8941101234567"
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">Purchase Price</label>
+          <input
+            type="number"
+            name="purchasePrice"
+            value={form.purchasePrice}
+            onChange={handleChange}
+            required
+            min="0"
+            step="0.01"
+            placeholder="e.g. 100.00"
+            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">Category</label>
