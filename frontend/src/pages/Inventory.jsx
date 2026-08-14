@@ -38,9 +38,8 @@ const STOCK_STATUS_LABELS = {
 
 const StockStatusBadge = ({ status }) => (
   <span
-    className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${
-      STOCK_STATUS_STYLES[status] ||
-      'bg-slate-100 text-slate-600'
+    className={`inline-flex min-w-[82px] items-center justify-center whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium ${
+      STOCK_STATUS_STYLES[status] || 'bg-slate-100 text-slate-600'
     }`}
   >
     {STOCK_STATUS_LABELS[status] || status}
