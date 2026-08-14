@@ -16,16 +16,61 @@ export const getProductByIdRequest = async (id) => {
   return data.data;
 };
 
-export const createProductRequest = async ({ name, sku, barcode, categoryId, description, status, purchasePrice }) => {
+export const createProductRequest = async ({
+  name,
+  sku,
+  barcode,
+  categoryId,
+  description,
+  status,
+  purchasePrice,
+  sellingPrice,
+  minimumStock,
+  openingStock,
+  unit,
+}) => {
   const { data } = await axiosInstance.post('/products', {
-    name, sku, barcode, categoryId, description, status, purchasePrice,
+    name,
+    sku,
+    barcode,
+    categoryId,
+    description,
+    status,
+    purchasePrice,
+    sellingPrice,
+    minimumStock,
+    openingStock,
+    unit,
   });
   return data.data;
 };
 
-export const updateProductRequest = async ({ id, name, sku, barcode, categoryId, description, status, purchasePrice }) => {
+export const updateProductRequest = async ({
+  id,
+  name,
+  sku,
+  barcode,
+  categoryId,
+  description,
+  status,
+  purchasePrice,
+  sellingPrice,
+  minimumStock,
+  openingStock,
+  unit,
+}) => {
   const { data } = await axiosInstance.put(`/products/${id}`, {
-    name, sku, barcode, categoryId, description, status, purchasePrice,
+    name,
+    sku,
+    barcode,
+    categoryId,
+    description,
+    status,
+    purchasePrice,
+    sellingPrice,
+    minimumStock,
+    openingStock,
+    unit,
   });
   return data.data;
 };

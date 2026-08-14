@@ -204,9 +204,9 @@ const Products = () => {
                   <th className="px-4 py-3 font-medium">Barcode</th>
                   <th className="px-4 py-3 font-medium">Purchase Price</th>
                   <th className="px-4 py-3 font-medium">Category</th>
-                  <th className="px-4 py-3 font-medium">Description</th>
+                  <th className="px-4 py-3 font-medium">Selling Price</th>
+                  <th className="px-4 py-3 font-medium">Stock</th>
                   <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium">Created</th>
                   <th className="px-4 py-3 text-right font-medium">Actions</th>
                 </tr>
               </thead>
@@ -226,16 +226,24 @@ const Products = () => {
                         <span className="text-slate-300">—</span>
                       )}
                     </td>
-                    
-                    <td className="max-w-xs truncate px-4 py-3 text-slate-500">
-                      {product.description || <span className="text-slate-300">—</span>}
+                    <td className="px-4 py-3 text-slate-700">
+                      ৳{Number(product.purchasePrice ?? 0).toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={
+                          Number(product.openingStock ?? 0) <= Number(product.minimumStock ?? 0)
+                            ? 'font-medium text-red-600'
+                            : 'text-slate-700'
+                        }
+                      >
+                        {product.openingStock ?? 0} {product.unit || 'pcs'}
+                      </span>
                     </td>
                     <td className="px-4 py-3">
                       <StatusBadge status={product.status} />
                     </td>
-                    <td className="px-4 py-3 text-slate-500">
-                      {new Date(product.createdAt).toLocaleDateString()}
-                    </td>
+
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-2">
                         <button

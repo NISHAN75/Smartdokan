@@ -25,7 +25,7 @@ const Modal = ({ open, onClose, title, children, maxWidth = 'max-w-md' }) => {
         aria-hidden="true"
       />
       <div
-        className={`relative w-full ${maxWidth} rounded-xl bg-white p-6 shadow-lg`}
+        className={`relative w-full ${maxWidth} max-h-[90vh] overflow-y-auto rounded-xl bg-white p-6 shadow-lg`}
         role="dialog"
         aria-modal="true"
         aria-label={title}

@@ -2,7 +2,23 @@ import { useState, useEffect } from 'react';
 import Modal from '../ui/Modal';
 import { useCategories } from '../../hooks/useCategories';
 
-const emptyForm = { name: '', sku: '', barcode: '', purchasePrice: '', categoryId: '', description: '', status: 'active' };
+const emptyForm = {
+  name: '',
+  sku: '',
+  barcode: '',
+  purchasePrice: '',
+  sellingPrice: '',
+  minimumStock: '0',
+  openingStock: '0',
+  unit: 'pcs',
+  categoryId: '',
+  description: '',
+  status: 'active',
+};
+
+// Controlled dropdown — do not create a separate Unit model/collection
+// for this. Kept in sync with the backend's ALLOWED_UNITS list.
+const UNIT_OPTIONS = ['pcs', 'kg', 'gram', 'liter', 'ml', 'box', 'packet', 'piece', 'dozen', 'other'];
 
 // A generous limit so the dropdown effectively shows "all" categories for
 // a single-shop MVP, without building a separate category-fetching path.
@@ -37,6 +53,19 @@ useEffect(() => {
             initialData.purchasePrice !== undefined && initialData.purchasePrice !== null
               ? String(initialData.purchasePrice)
               : '',
+          sellingPrice:
+            initialData.sellingPrice !== undefined && initialData.sellingPrice !== null
+              ? String(initialData.sellingPrice)
+              : '',
+          minimumStock:
+            initialData.minimumStock !== undefined && initialData.minimumStock !== null
+              ? String(initialData.minimumStock)
+              : '0',
+          openingStock:
+            initialData.openingStock !== undefined && initialData.openingStock !== null
+              ? String(initialData.openingStock)
+              : '0',
+          unit: initialData.unit || 'pcs',    
           categoryId:
             initialData.categoryId?._id ||
             initialData.categoryId ||
@@ -89,6 +118,49 @@ useEffect(() => {
       setError('Purchase price cannot be negative');
       return;
     }
+    if (form.sellingPrice === '' || form.sellingPrice === null) {
+      setError('Selling price is required');
+      return;
+    }
+    const numericSellingPrice = Number(form.sellingPrice);
+    if (Number.isNaN(numericSellingPrice)) {
+      setError('Selling price must be a valid number');
+      return;
+    }
+    if (numericSellingPrice < 0) {
+      setError('Selling price cannot be negative');
+      return;
+    }
+    if (form.minimumStock === '' || form.minimumStock === null) {
+      setError('Minimum stock is required');
+      return;
+    }
+    const numericMinimumStock = Number(form.minimumStock);
+    if (Number.isNaN(numericMinimumStock) || !Number.isInteger(numericMinimumStock)) {
+      setError('Minimum stock must be a whole number');
+      return;
+    }
+    if (numericMinimumStock < 0) {
+      setError('Minimum stock cannot be negative');
+      return;
+    }
+    if (form.openingStock === '' || form.openingStock === null) {
+      setError('Opening stock is required');
+      return;
+    }
+    const numericOpeningStock = Number(form.openingStock);
+    if (Number.isNaN(numericOpeningStock) || !Number.isInteger(numericOpeningStock)) {
+      setError('Opening stock must be a whole number');
+      return;
+    }
+    if (numericOpeningStock < 0) {
+      setError('Opening stock cannot be negative');
+      return;
+    }
+    if (!UNIT_OPTIONS.includes(form.unit)) {
+      setError('Please select a valid unit');
+      return;
+    }
 
     try {
         await onSubmit({
@@ -98,6 +170,10 @@ useEffect(() => {
         barcode: form.barcode.trim(), 
         description: form.description.trim(),
         purchasePrice: numericPurchasePrice,
+        sellingPrice: numericSellingPrice,
+        minimumStock: numericMinimumStock,
+        openingStock: numericOpeningStock,
+        unit: form.unit,
     });
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong. Please try again.');
@@ -166,6 +242,66 @@ useEffect(() => {
           />
         </div>
         <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">Selling Price</label>
+          <input
+            type="number"
+            name="sellingPrice"
+            value={form.sellingPrice}
+            onChange={handleChange}
+            required
+            min="0"
+            step="0.01"
+            placeholder="e.g. 130.00"
+            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Minimum Stock</label>
+            <input
+              type="number"
+              name="minimumStock"
+              value={form.minimumStock}
+              onChange={handleChange}
+              required
+              min="0"
+              step="1"
+              placeholder="0"
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Opening Stock</label>
+            <input
+              type="number"
+              name="openingStock"
+              value={form.openingStock}
+              onChange={handleChange}
+              required
+              min="0"
+              step="1"
+              placeholder="0"
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            />
+          </div>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">Unit</label>
+          <select
+            name="unit"
+            value={form.unit}
+            onChange={handleChange}
+            required
+            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          >
+            {UNIT_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">Category</label>
           <select
             name="categoryId"
@@ -190,7 +326,6 @@ useEffect(() => {
             </p>
           )}
         </div>
-
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">
             Description

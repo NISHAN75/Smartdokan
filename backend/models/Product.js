@@ -1,10 +1,12 @@
 import mongoose from 'mongoose';
 
-// Product Management — Step 1. Intentionally minimal: name, category,
-// description, status, and the same companyId/branchId/createdBy
-// scaffolding Category already uses. SKU, barcode, prices, stock,
-// expiry, brand, image, and supplier are later steps — do not add them
-// here.
+// Product Management — built incrementally, one field-group at a time:
+// Step 1 (name, category, description, status) -> SKU -> Barcode ->
+// Purchase Price -> Product Foundation (sellingPrice, minimumStock,
+// openingStock, unit). Inventory/stock-movement history, expiry, brand,
+// image, and supplier are still later, separate steps — do not add them
+// here. openingStock is only a static Product field at this stage; it is
+// NOT a stock-movement ledger.
 const productSchema = new mongoose.Schema(
   {
     name: {
@@ -30,6 +32,39 @@ const productSchema = new mongoose.Schema(
       required: [true, 'Purchase price is required'],
       min: [0, 'Purchase price cannot be negative'],
       default: 0,
+    },
+        sellingPrice: {
+      type: Number,
+      required: [true, 'Selling price is required'],
+      min: [0, 'Selling price cannot be negative'],
+    },
+    minimumStock: {
+      type: Number,
+      required: [true, 'Minimum stock is required'],
+      min: [0, 'Minimum stock cannot be negative'],
+      default: 0,
+      validate: {
+        validator: Number.isInteger,
+        message: 'Minimum stock must be a whole number',
+      },
+    },
+    openingStock: {
+      type: Number,
+      required: [true, 'Opening stock is required'],
+      min: [0, 'Opening stock cannot be negative'],
+      default: 0,
+      validate: {
+        validator: Number.isInteger,
+        message: 'Opening stock must be a whole number',
+      },
+    },
+    unit: {
+      type: String,
+      enum: {
+        values: ['pcs', 'kg', 'gram', 'liter', 'ml', 'box', 'packet', 'piece', 'dozen', 'other'],
+        message: '{VALUE} is not a valid unit',
+      },
+      default: 'pcs',
     },
     categoryId: {
       type: mongoose.Schema.Types.ObjectId,

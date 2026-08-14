@@ -6,6 +6,7 @@ import Product from '../models/Product.js';
 import Category from '../models/Category.js';
 
 const ALLOWED_STATUSES = ['active', 'inactive'];
+const ALLOWED_UNITS = ['pcs', 'kg', 'gram', 'liter', 'ml', 'box', 'packet', 'piece', 'dozen', 'other'];
 
 // Same reasoning as Category's getScope: companyId isn't on the User
 // model yet (no Company module = no real tenants), so every request
@@ -56,6 +57,56 @@ const validatePurchasePrice = (rawValue) => {
 
   return value;
 };
+// Validates sellingPrice is present, numeric, and non-negative.
+// Decimal values are allowed (same rules as purchasePrice, different
+// field name in the error messages).
+const validateSellingPrice = (rawValue) => {
+  if (rawValue === undefined || rawValue === null || rawValue === '') {
+    throw new AppError('Selling price is required', 400);
+  }
+
+  const value = Number(rawValue);
+  if (Number.isNaN(value)) {
+    throw new AppError('Selling price must be a valid number', 400);
+  }
+  if (value < 0) {
+    throw new AppError('Selling price cannot be negative', 400);
+  }
+
+  return value;
+};
+
+// Shared validator for minimumStock/openingStock: required, numeric,
+// non-negative, and a whole number (no decimals) — unlike purchasePrice/
+// sellingPrice which explicitly allow decimals.
+const validateStockInteger = (rawValue, fieldLabel) => {
+  if (rawValue === undefined || rawValue === null || rawValue === '') {
+    throw new AppError(`${fieldLabel} is required`, 400);
+  }
+
+  const value = Number(rawValue);
+  if (Number.isNaN(value)) {
+    throw new AppError(`${fieldLabel} must be a valid number`, 400);
+  }
+  if (value < 0) {
+    throw new AppError(`${fieldLabel} cannot be negative`, 400);
+  }
+  if (!Number.isInteger(value)) {
+    throw new AppError(`${fieldLabel} must be a whole number`, 400);
+  }
+
+  return value;
+};
+// Validates unit against the fixed, controlled dropdown list. Falls back
+// to the 'pcs' default only when the caller explicitly wants a
+// creation-time default (see createProduct) — update calls this only
+// when a unit value was actually sent.
+const validateUnit = (rawValue) => {
+  if (!ALLOWED_UNITS.includes(rawValue)) {
+    throw new AppError(`Unit must be one of: ${ALLOWED_UNITS.join(', ')}`, 400);
+  }
+  return rawValue;
+};
 const assertBarcodeAvailable = async (barcode, companyId, excludeId) => {
   const duplicate = await Product.findOne({
     ...(excludeId ? { _id: { $ne: excludeId } } : {}),
@@ -73,7 +124,19 @@ const assertBarcodeAvailable = async (barcode, companyId, excludeId) => {
  * @access  Private (any authenticated user)
  */
 export const createProduct = asyncHandler(async (req, res) => {
-  const { name, sku, barcode, categoryId, description, status, purchasePrice } = req.body;
+  const {
+      name,
+      sku,
+      barcode,
+      categoryId,
+      description,
+      status,
+      purchasePrice,
+      sellingPrice,
+      minimumStock,
+      openingStock,
+      unit,
+    } = req.body;
 
   if (!name || !name.trim()) {
     throw new AppError('Product name is required', 400);
@@ -88,6 +151,10 @@ export const createProduct = asyncHandler(async (req, res) => {
 
   const { companyId } = getScope(req);
   const validatedPurchasePrice = validatePurchasePrice(purchasePrice);
+  const validatedSellingPrice = validateSellingPrice(sellingPrice);
+  const validatedMinimumStock = validateStockInteger(minimumStock, 'Minimum stock');
+  const validatedOpeningStock = validateStockInteger(openingStock, 'Opening stock');
+  const validatedUnit = validateUnit(unit || 'pcs');
   const trimmedName = name.trim();
   const trimmedSku = sku.trim();
   const trimmedBarcode = barcode?.trim() || undefined;
@@ -116,6 +183,10 @@ export const createProduct = asyncHandler(async (req, res) => {
     sku: trimmedSku,
     barcode: trimmedBarcode,
     purchasePrice: validatedPurchasePrice,
+    sellingPrice: validatedSellingPrice,
+    minimumStock: validatedMinimumStock,
+    openingStock: validatedOpeningStock,
+    unit: validatedUnit,
     categoryId,
     description: description?.trim() || '',
     status: status || 'active',
@@ -202,7 +273,19 @@ export const getProductById = asyncHandler(async (req, res) => {
  * @access  Private (any authenticated user)
  */
 export const updateProduct = asyncHandler(async (req, res) => {
-  const { name, sku, barcode, categoryId, description, status, purchasePrice } = req.body;
+  const {
+      name,
+      sku,
+      barcode,
+      categoryId,
+      description,
+      status,
+      purchasePrice,
+      sellingPrice,
+      minimumStock,
+      openingStock,
+      unit,
+    } = req.body;
   const { companyId } = getScope(req);
   const product = await Product.findOne({ _id: req.params.id, companyId });
   if (!product) {
@@ -261,6 +344,21 @@ export const updateProduct = asyncHandler(async (req, res) => {
   }
   if (purchasePrice !== undefined) {
     product.purchasePrice = validatePurchasePrice(purchasePrice);
+  }
+  if (sellingPrice !== undefined) {
+    product.sellingPrice = validateSellingPrice(sellingPrice);
+  }
+
+  if (minimumStock !== undefined) {
+    product.minimumStock = validateStockInteger(minimumStock, 'Minimum stock');
+  }
+
+  if (openingStock !== undefined) {
+    product.openingStock = validateStockInteger(openingStock, 'Opening stock');
+  }
+
+  if (unit !== undefined) {
+    product.unit = validateUnit(unit);
   }
 
   await product.save();
