@@ -6,6 +6,7 @@ import DashboardLayout from './layouts/DashboardLayout';
 import Dashboard from './pages/Dashboard';
 import Categories from './pages/Categories';
 import Products from './pages/Products';
+import Inventory from './pages/Inventory';
 
 // Minimal placeholder screens outside the dashboard shell.
 const AdminOnly = () => <div className="p-8">Admin-only area</div>;
@@ -26,10 +27,10 @@ const App = () => {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/categories" element={<Categories />} />
           <Route path="/products" element={<Products />} />
-          {/* Products, Inventory, Sales, Purchases, Customers,
-              Suppliers, Expenses, Reports, Settings routes are added here
-              as each of those modules is built. The sidebar already links
-              to their paths. */}
+          <Route path="/inventory" element={<Inventory />} />
+          {/* Sales, Purchases, Customers, Suppliers, Expenses, Reports,
+              Settings routes are added here as each of those modules is
+              built. The sidebar already links to their paths. */}
         </Route>
       </Route>
 

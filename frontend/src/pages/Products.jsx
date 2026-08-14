@@ -227,7 +227,7 @@ const Products = () => {
                       )}
                     </td>
                     <td className="px-4 py-3 text-slate-700">
-                      ৳{Number(product.purchasePrice ?? 0).toFixed(2)}
+                      ৳{Number(product.sellingPrice ?? 0).toFixed(2)}
                     </td>
                     <td className="px-4 py-3">
                       <span
