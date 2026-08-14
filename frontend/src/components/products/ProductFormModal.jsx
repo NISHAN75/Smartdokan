@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import Modal from '../ui/Modal';
 import { useCategories } from '../../hooks/useCategories';
 
-const emptyForm = { name: '', categoryId: '', description: '', status: 'active' };
+const emptyForm = { name: '', sku: '', categoryId: '', description: '', status: 'active' };
 
 // A generous limit so the dropdown effectively shows "all" categories for
 // a single-shop MVP, without building a separate category-fetching path.
@@ -56,6 +56,11 @@ const ProductFormModal = ({ open, onClose, onSubmit, initialData, isSubmitting }
       setError('Product name must be at least 2 characters');
       return;
     }
+    const trimmedSku = form.sku.trim();
+    if (!trimmedSku) {
+        setError('SKU is required');
+        return;
+    }
     if (!form.categoryId) {
       setError('Please select a category');
       return;
@@ -90,7 +95,18 @@ const ProductFormModal = ({ open, onClose, onSubmit, initialData, isSubmitting }
             className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
         </div>
-
+        <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">SKU</label>
+            <input
+                type="text"
+                name="sku"
+                value={form.sku}
+                onChange={handleChange}
+                required
+                placeholder="e.g. GR-RICE-001"
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            />
+        </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">Category</label>
           <select

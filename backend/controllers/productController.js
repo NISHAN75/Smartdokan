@@ -28,6 +28,16 @@ const assertCategoryInScope = async (categoryId, companyId) => {
 
   return category;
 };
+const assertSkuAvailable = async (sku, companyId, excludeId) => {
+  const duplicate = await Product.findOne({
+    ...(excludeId ? { _id: { $ne: excludeId } } : {}),
+    companyId,
+    sku: { $regex: `^${escapeRegex(sku)}$`, $options: 'i' },
+  });
+  if (duplicate) {
+    throw new AppError('A product with this SKU already exists', 409);
+  }
+};
 
 /**
  * @desc    Create a product
@@ -35,23 +45,28 @@ const assertCategoryInScope = async (categoryId, companyId) => {
  * @access  Private (any authenticated user)
  */
 export const createProduct = asyncHandler(async (req, res) => {
-  const { name, categoryId, description, status } = req.body;
+  const { name, sku, categoryId, description, status } = req.body;
 
   if (!name || !name.trim()) {
     throw new AppError('Product name is required', 400);
   }
-
+  if (!sku || !sku.trim()) {
+    throw new AppError('SKU is required', 400);
+  }
   if (status && !ALLOWED_STATUSES.includes(status)) {
     throw new AppError(`Status must be one of: ${ALLOWED_STATUSES.join(', ')}`, 400);
   }
 
   const { companyId } = getScope(req);
   const trimmedName = name.trim();
+  const trimmedSku = sku.trim();
 
   // Validates the category exists and belongs to this company scope —
   // also catches a malformed categoryId via Mongo's CastError, which
   // the existing errorHandler already turns into a clean 400.
   await assertCategoryInScope(categoryId, companyId);
+  await assertSkuAvailable(trimmedSku, companyId);
+
 
   const existing = await Product.findOne({
     companyId,
@@ -63,6 +78,7 @@ export const createProduct = asyncHandler(async (req, res) => {
 
   const product = await Product.create({
     name: trimmedName,
+    sku: trimmedSku,
     categoryId,
     description: description?.trim() || '',
     status: status || 'active',
@@ -99,7 +115,7 @@ export const getProducts = asyncHandler(async (req, res) => {
     { companyId },
     queryStringForFilters
   )
-    .search(['name', 'description'])
+    .search(['name', 'description', 'sku']) 
     .applyFilters(['status', 'categoryId'])
     .build();
 
@@ -173,6 +189,14 @@ export const updateProduct = asyncHandler(async (req, res) => {
     }
 
     product.name = trimmedName;
+  }
+  if (sku !== undefined) {
+    if (!sku.trim()) {
+        throw new AppError('SKU is required', 400);
+    }
+    const trimmedSku = sku.trim();
+    await assertSkuAvailable(trimmedSku, companyId, product._id);
+    product.sku = trimmedSku;
   }
 
   if (categoryId !== undefined) {

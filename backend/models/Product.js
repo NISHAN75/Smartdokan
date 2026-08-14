@@ -14,6 +14,12 @@ const productSchema = new mongoose.Schema(
       minlength: [2, 'Product name must be at least 2 characters'],
       maxlength: [150, 'Product name cannot exceed 150 characters'],
     },
+    sku: {
+        type: String,
+        required: [true, 'SKU is required'],
+        trim: true,
+        maxlength: [50, 'SKU cannot exceed 50 characters'],
+    },
     categoryId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Category',
@@ -62,7 +68,10 @@ const productSchema = new mongoose.Schema(
 // reasoning as Category's index: companyId is null for everyone today,
 // so this currently enforces global uniqueness — correct pre-multi-company
 // behavior, with no migration needed once companyId is populated.
-productSchema.index({ companyId: 1, name: 1 }, { unique: true });
+productSchema.index(
+  { companyId: 1, sku: 1 },
+  { unique: true, collation: { locale: 'en', strength: 2 } }
+);
 
 // Products are looked up by category constantly (list filters, future
 // Inventory/Sales joins) — index it now rather than retrofitting later.

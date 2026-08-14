@@ -132,7 +132,7 @@ const Products = () => {
               type="text"
               value={search}
               onChange={handleSearchChange}
-              placeholder="Search products..."
+              placeholder="Search by name or SKU..."
               className="w-full rounded-md border border-slate-300 py-2 pl-9 pr-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </div>
@@ -200,6 +200,7 @@ const Products = () => {
               <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="px-4 py-3 font-medium">Product Name</th>
+                  <th className="px-4 py-3 font-medium">SKU</th>
                   <th className="px-4 py-3 font-medium">Category</th>
                   <th className="px-4 py-3 font-medium">Description</th>
                   <th className="px-4 py-3 font-medium">Status</th>
@@ -211,6 +212,7 @@ const Products = () => {
                 {products.map((product) => (
                   <tr key={product._id} className="hover:bg-slate-50">
                     <td className="px-4 py-3 font-medium text-slate-800">{product.name}</td>
+                    <td className="px-4 py-3 text-slate-500">{product.sku}</td>
                     <td className="px-4 py-3 text-slate-500">
                       {product.categoryId?.name || (
                         <span className="text-slate-300">—</span>

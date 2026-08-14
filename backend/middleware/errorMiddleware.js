@@ -28,9 +28,13 @@ export const errorHandler = (err, req, res, next) => {
   if (err.code === 11000) {
     statusCode = 409;
     const field = Object.keys(err.keyValue || {})[0];
-    message = field === 'email'
-      ? `An account with this ${field} already exists`
-      : `A record with this ${field} already exists`;
+    if (field === 'email') {
+      message = `An account with this ${field} already exists`;
+    } else if (field === 'sku') {
+      message = 'A product with this SKU already exists';
+    } else {
+      message = `A record with this ${field} already exists`;
+    }
   }
 
   // Mongoose schema validation errors
