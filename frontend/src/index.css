@@ -1,3 +1,21 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Printing an invoice/receipt (SaleInvoiceModal) should show only the
+   invoice content, not the sidebar/navbar/modal backdrop around it. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #invoice-printable,
+  #invoice-printable * {
+    visibility: visible;
+  }
+  #invoice-printable {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+}
