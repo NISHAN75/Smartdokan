@@ -10,6 +10,7 @@ const ConfirmDialog = ({
   title,
   message,
   confirmLabel = 'Confirm',
+  loadingLabel,
   onConfirm,
   onCancel,
   loading = false,
@@ -30,7 +31,7 @@ const ConfirmDialog = ({
         disabled={loading}
         className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700 disabled:opacity-60"
       >
-        {loading ? 'Deleting...' : confirmLabel}
+        {loading ? loadingLabel || 'Deleting...' : confirmLabel}
       </button>
     </div>
   </Modal>

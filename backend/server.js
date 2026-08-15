@@ -11,6 +11,8 @@ import inventoryRoutes from './routes/inventoryRoutes.js';
 import stockMovementRoutes from './routes/stockMovementRoutes.js';
 import customerRoutes from './routes/customerRoutes.js';
 import saleRoutes from './routes/saleRoutes.js';
+import supplierRoutes from './routes/supplierRoutes.js';
+import purchaseRoutes from './routes/purchaseRoutes.js';
 import { notFound, errorHandler } from './middleware/errorMiddleware.js';
 
 
@@ -38,6 +40,8 @@ app.use('/api/inventory', inventoryRoutes);
 app.use('/api/stock-movements',stockMovementRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/sales', saleRoutes);
+app.use('/api/suppliers', supplierRoutes);
+app.use('/api/purchases', purchaseRoutes);
 
 
 app.get('/api/health', (req, res) => {

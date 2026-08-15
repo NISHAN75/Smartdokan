@@ -10,6 +10,10 @@ import Inventory from './pages/Inventory';
 import StockMovements from './pages/StockMovements';
 import SalesPOS from './pages/SalesPOS';
 import SalesHistory from './pages/SalesHistory';
+import CreatePurchase from './pages/CreatePurchase';
+import Purchases from './pages/Purchases';
+import PurchaseDetails from './pages/PurchaseDetails';
+import Customers from './pages/Customers';
 
 // Minimal placeholder screens outside the dashboard shell.
 const AdminOnly = () => <div className="p-8">Admin-only area</div>;
@@ -37,8 +41,12 @@ const App = () => {
           <Route path="/stock-movements" element={<StockMovements />} />
           <Route path="/sales" element={<SalesPOS />} />
           <Route path="/sales/history" element={<SalesHistory />} />
+          <Route path="/purchases" element={<Purchases />} />
+          <Route path="/purchases/new" element={<CreatePurchase />} />
+          <Route path="/purchases/:id" element={<PurchaseDetails />} />
+          <Route path="/customers" element={<Customers />} />
 
-          {/* Purchases, Customers, Suppliers, Expenses, Reports,
+          {/* Suppliers, Expenses, Reports,
               Settings routes are added here as each module is built. */}
         </Route>
       </Route>
