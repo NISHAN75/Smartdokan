@@ -28,6 +28,10 @@ export const useCreatePurchase = () => {
       // reasoning as useCreateSale.
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
       queryClient.invalidateQueries({ queryKey: ['stock-movements'] });
+      // Supplier due is derived live from Purchase.dueAmount (see
+      // supplierController), so the Suppliers list/details/summary go
+      // stale too.
+      queryClient.invalidateQueries({ queryKey: ['suppliers'] });
     },
   });
 };

@@ -14,6 +14,8 @@ import CreatePurchase from './pages/CreatePurchase';
 import Purchases from './pages/Purchases';
 import PurchaseDetails from './pages/PurchaseDetails';
 import Customers from './pages/Customers';
+import Suppliers from './pages/Suppliers';
+import SupplierDetails from './pages/SupplierDetails';
 
 // Minimal placeholder screens outside the dashboard shell.
 const AdminOnly = () => <div className="p-8">Admin-only area</div>;
@@ -45,9 +47,11 @@ const App = () => {
           <Route path="/purchases/new" element={<CreatePurchase />} />
           <Route path="/purchases/:id" element={<PurchaseDetails />} />
           <Route path="/customers" element={<Customers />} />
+          <Route path="/suppliers" element={<Suppliers />} />
+          <Route path="/suppliers/:id" element={<SupplierDetails />} />
 
-          {/* Suppliers, Expenses, Reports,
-              Settings routes are added here as each module is built. */}
+          {/* Expenses, Reports, Settings routes are added here as
+              each module is built. */}
         </Route>
       </Route>
 

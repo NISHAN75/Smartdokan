@@ -140,6 +140,9 @@ const createPurchaseWithSession = async (req, session) => {
   if (!supplier) {
     throw new AppError('Selected supplier does not exist', 400);
   }
+  if (supplier.status !== 'active') {
+    throw new AppError(`"${supplier.name}" is deactivated and cannot be selected for a new purchase`, 400);
+  }
 
   const requestedItems = validateItemsPayload(rawItems);
 
