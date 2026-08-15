@@ -1,0 +1,11 @@
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import * as api from '../api/reportApi';
+const query = (key, fn, params, enabled) => useQuery({ queryKey: ['reports', key, params], queryFn: () => fn(params), enabled, placeholderData: keepPreviousData });
+export const useSalesReport = (p,e=true) => query('sales',api.getSalesReportRequest,p,e);
+export const usePurchasesReport = (p,e=true) => query('purchases',api.getPurchasesReportRequest,p,e);
+export const useExpensesReport = (p,e=true) => query('expenses',api.getExpensesReportRequest,p,e);
+export const useProfitLossReport = (p,e=true) => query('profit-loss',api.getProfitLossReportRequest,p,e);
+export const useProductsReport = (p,e=true) => query('products',api.getProductsReportRequest,p,e);
+export const useCustomersReport = (p,e=true) => query('customers',api.getCustomersReportRequest,p,e);
+export const useSuppliersReport = (p,e=true) => query('suppliers',api.getSuppliersReportRequest,p,e);
+export const useInventoryReport = (p,e=true) => query('inventory',api.getInventoryReportRequest,p,e);

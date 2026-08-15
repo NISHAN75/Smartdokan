@@ -15,6 +15,7 @@ import supplierRoutes from './routes/supplierRoutes.js';
 import purchaseRoutes from './routes/purchaseRoutes.js';
 import expenseCategoryRoutes from './routes/expenseCategoryRoutes.js';
 import expenseRoutes from './routes/expenseRoutes.js';
+import reportRoutes from './routes/reportRoutes.js';
 import { notFound, errorHandler } from './middleware/errorMiddleware.js';
 
 
@@ -46,6 +47,7 @@ app.use('/api/suppliers', supplierRoutes);
 app.use('/api/purchases', purchaseRoutes);
 app.use('/api/expense-categories', expenseCategoryRoutes);
 app.use('/api/expenses', expenseRoutes);
+app.use('/api/reports', reportRoutes);
 
 
 app.get('/api/health', (req, res) => {

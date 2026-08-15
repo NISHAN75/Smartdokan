@@ -1,0 +1,3 @@
+import axiosInstance from './axiosInstance';
+const get=(path,params)=>axiosInstance.get(`/reports/${path}`,{params}).then(r=>r.data);
+export const getSalesReportRequest=p=>get('sales',p); export const getPurchasesReportRequest=p=>get('purchases',p); export const getExpensesReportRequest=p=>get('expenses',p); export const getProfitLossReportRequest=p=>get('profit-loss',p); export const getProductsReportRequest=p=>get('products',p); export const getCustomersReportRequest=p=>get('customers',p); export const getSuppliersReportRequest=p=>get('suppliers',p); export const getInventoryReportRequest=p=>get('inventory',p);
