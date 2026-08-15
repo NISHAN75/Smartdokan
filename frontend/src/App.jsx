@@ -18,6 +18,7 @@ import Suppliers from './pages/Suppliers';
 import SupplierDetails from './pages/SupplierDetails';
 import Expenses from './pages/Expenses';
 import Reports from './pages/Reports';
+import Settings from './pages/Settings';
 
 // Minimal placeholder screens outside the dashboard shell.
 const AdminOnly = () => <div className="p-8">Admin-only area</div>;
@@ -53,10 +54,10 @@ const App = () => {
           <Route path="/suppliers/:id" element={<SupplierDetails />} />
           <Route path="/expenses" element={<Expenses />} />
           <Route path="/reports" element={<Reports />} />
+          <Route path="/settings" element={<Settings />} />
   
 
-          {/* Reports, Settings routes are added here as each module
-              is built. */}
+
         </Route>
       </Route>
 

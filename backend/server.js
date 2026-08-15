@@ -16,6 +16,8 @@ import purchaseRoutes from './routes/purchaseRoutes.js';
 import expenseCategoryRoutes from './routes/expenseCategoryRoutes.js';
 import expenseRoutes from './routes/expenseRoutes.js';
 import reportRoutes from './routes/reportRoutes.js';
+import settingsRoutes from './routes/settingsRoutes.js';
+import dashboardRoutes from './routes/dashboardRoutes.js';
 import { notFound, errorHandler } from './middleware/errorMiddleware.js';
 
 
@@ -48,6 +50,8 @@ app.use('/api/purchases', purchaseRoutes);
 app.use('/api/expense-categories', expenseCategoryRoutes);
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/settings', settingsRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 
 app.get('/api/health', (req, res) => {
