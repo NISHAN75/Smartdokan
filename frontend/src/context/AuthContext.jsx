@@ -36,13 +36,14 @@ export const AuthProvider = ({ children }) => {
   const registerMutation = useMutation({
     mutationFn: registerRequest,
     onSuccess: (data) => {
-      queryClient.setQueryData(['authUser'], data);
+      queryClient.setQueryData(['authUser'], null);
     },
   });
 
   const logoutMutation = useMutation({
     mutationFn: logoutRequest,
-    onSuccess: () => {
+    onSettled: () => {
+      // Always clear the local session, even if the server cookie is already expired.
       queryClient.setQueryData(['authUser'], null);
       queryClient.clear();
     },
