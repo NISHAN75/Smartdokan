@@ -12,8 +12,10 @@ import {
   Receipt,
   BarChart3,
   Settings,
+  UserCog,
   X,
 } from 'lucide-react';
+import useAuth from '../hooks/useAuth';
 
 const navItems = [
   { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
@@ -30,12 +32,20 @@ const navItems = [
   { label: 'Settings', to: '/settings', icon: Settings },
 ];
 
+// Admin-only nav items — kept separate from the shared list above so
+// non-admins never even see the link. This is UX only: the real
+// enforcement is the `authorize('admin')` backend middleware and the
+// role-gated /users route in App.jsx, not this hidden-link check.
+const adminNavItems = [{ label: 'User Management', to: '/users', icon: UserCog }];
+
 /**
  * Sidebar navigation. Links to modules that don't exist yet still render
  * (per the module list requirement) — React Router will simply show
  * nothing/404 until those routes are built, which is expected at this stage.
  */
 const Sidebar = ({ open, onClose }) => {
+  const { hasRole } = useAuth();
+  const isAdmin = hasRole('admin');
   return (
     <>
       {/* Mobile backdrop */}
@@ -88,6 +98,29 @@ const Sidebar = ({ open, onClose }) => {
               {label}
             </NavLink>
           ))}
+
+          {isAdmin && (
+            <>
+              <div className="my-2 border-t border-slate-800" />
+              {adminNavItems.map(({ label, to, icon: Icon }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  onClick={onClose}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                      isActive
+                        ? 'bg-amber-500/10 text-amber-400'
+                        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                    }`
+                  }
+                >
+                  <Icon size={18} strokeWidth={2} />
+                  {label}
+                </NavLink>
+              ))}
+            </>
+          )}
         </nav>
       </aside>
     </>

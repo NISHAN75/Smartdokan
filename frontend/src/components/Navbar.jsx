@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { Menu, Bell, ChevronDown, LogOut } from 'lucide-react';
+import { Menu, ChevronDown, LogOut } from 'lucide-react';
+import NotificationDropdown from './NotificationDropdown';
 import useAuth from '../hooks/useAuth';
 
 /**
@@ -46,12 +47,7 @@ const Navbar = ({ onMenuClick }) => {
       </div>
 
       <div className="flex items-center gap-2 sm:gap-4">
-        <button
-          className="rounded-full p-2 text-slate-500 hover:bg-slate-100"
-          aria-label="Notifications"
-        >
-          <Bell size={20} />
-        </button>
+        <NotificationDropdown />
 
         <div className="relative" ref={menuRef}>
           <button
