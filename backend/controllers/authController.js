@@ -1,6 +1,6 @@
 import asyncHandler from '../utils/asyncHandler.js';
 import AppError from '../utils/AppError.js';
-import generateToken from '../utils/generateToken.js';
+import generateToken, { clearAuthCookie } from '../utils/generateToken.js';
 import User from '../models/User.js';
 import { createRawToken, hashToken } from '../utils/authTokens.js';
 import { buildPasswordResetEmail, buildVerificationEmail, sendEmail } from '../utils/email.js';
@@ -13,6 +13,22 @@ const sendVerificationEmail = async (user, rawToken) => {
   const verificationUrl = `${FRONTEND_URL()}/verify-email?token=${encodeURIComponent(rawToken)}`;
   const email = buildVerificationEmail({ name: user.name, verificationUrl });
   return sendEmail({ to: user.email, ...email });
+};
+
+// Logs enough to diagnose an email-send failure (which operation, the
+// recipient, the provider's error code/message/status) without ever
+// logging the API key, the raw verification/reset token, or a
+// password. error.providerResponse (when present) is Resend's own
+// JSON error body describing *why* it rejected the request (e.g. a
+// sandbox-sender restriction) — exactly the detail needed to diagnose
+// "works when I test it manually but fails from the app" — which was
+// previously being silently discarded instead of logged anywhere.
+const logEmailFailure = (context, recipientEmail, error) => {
+  console.error(`[email:${context}] failed to send to ${recipientEmail}`, {
+    code: error.code,
+    message: error.message,
+    providerResponse: error.providerResponse,
+  });
 };
 
 /**
@@ -47,6 +63,7 @@ export const registerUser = asyncHandler(async (req, res) => {
     await sendVerificationEmail(user, rawToken);
   } catch (error) {
     await User.deleteOne({ _id: user._id });
+    logEmailFailure('registration-verification', user.email, error);
     if (error.code === 'EMAIL_CONFIG_MISSING') {
       throw new AppError('Verification email is not configured on the server', 503);
     }
@@ -121,6 +138,7 @@ export const resendVerification = asyncHandler(async (req, res) => {
     user.emailVerificationToken = undefined;
     user.emailVerificationExpires = undefined;
     await user.save({ validateBeforeSave: false });
+    logEmailFailure('resend-verification', user.email, error);
     if (error.code === 'EMAIL_CONFIG_MISSING') {
       throw new AppError('Verification email is not configured on the server', 503);
     }
@@ -203,6 +221,7 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     user.passwordResetToken = undefined;
     user.passwordResetExpires = undefined;
     await user.save({ validateBeforeSave: false });
+    logEmailFailure('password-reset', user.email, error);
     if (error.code === 'EMAIL_CONFIG_MISSING') {
       throw new AppError('Password reset email is not configured on the server', 503);
     }
@@ -270,13 +289,7 @@ export const getMe = asyncHandler(async (req, res) => {
  * @access  Private
  */
 export const logoutUser = asyncHandler(async (req, res) => {
-  res.cookie('token', '', {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    expires: new Date(0),
-    maxAge: 0,
-  });
+  clearAuthCookie(res);
 
   res.status(200).json({ success: true, message: 'Logged out successfully' });
 });
