@@ -21,7 +21,7 @@ export const getMeRequest = async () => {
 };
 
 export const verifyEmailRequest = async (token) => {
-  const { data } = await axiosInstance.post('/auth/verify-email', { token });
+  const { data } = await axiosInstance.get('/auth/verify-email', { params: { token } });
   return data;
 };
 

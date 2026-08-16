@@ -1,97 +1,78 @@
-import crypto from 'crypto';
 import asyncHandler from '../utils/asyncHandler.js';
 import AppError from '../utils/AppError.js';
 import generateToken from '../utils/generateToken.js';
-import sendEmail from '../utils/sendEmail.js';
 import User from '../models/User.js';
+import { createRawToken, hashToken } from '../utils/authTokens.js';
+import { buildPasswordResetEmail, buildVerificationEmail, sendEmail } from '../utils/email.js';
 
 const FRONTEND_URL = () => (process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/$/, '');
-const TOKEN_MINUTES = 30;
-
-const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
-const createRawToken = () => crypto.randomBytes(32).toString('hex');
-
-const userData = (user) => ({
-  id: user._id,
-  name: user.name,
-  email: user.email,
-  role: user.role,
-  isActive: user.isActive,
-  emailVerified: user.emailVerified !== false,
-});
+const VERIFICATION_HOURS = 24;
+const RESET_MINUTES = 30;
 
 const sendVerificationEmail = async (user, rawToken) => {
-  const url = `${FRONTEND_URL()}/verify-email?token=${encodeURIComponent(rawToken)}`;
-  await sendEmail({
-    to: user.email,
-    subject: 'Verify your SmartDokan email',
-    text: `Hi ${user.name}, verify your SmartDokan email: ${url}. This link expires in ${TOKEN_MINUTES} minutes.`,
-    html: `<p>Hi ${user.name},</p><p>Please verify your SmartDokan email address.</p><p><a href="${url}">Verify email</a></p><p>This link expires in ${TOKEN_MINUTES} minutes.</p>`,
-  });
+  const verificationUrl = `${FRONTEND_URL()}/verify-email?token=${encodeURIComponent(rawToken)}`;
+  const email = buildVerificationEmail({ name: user.name, verificationUrl });
+  return sendEmail({ to: user.email, ...email });
 };
 
+/**
+ * @desc    Register a new user
+ * @route   POST /api/auth/register
+ * @access  Public
+ */
 export const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body;
-  if (!name || !email || !password) throw new AppError('Name, email and password are all required', 400);
+  const normalizedEmail = email?.toLowerCase().trim();
 
-  const normalizedEmail = email.toLowerCase().trim();
+  if (!name || !normalizedEmail || !password) {
+    throw new AppError('Name, email and password are all required', 400);
+  }
+
   const existingUser = await User.findOne({ email: normalizedEmail });
-  if (existingUser) throw new AppError('An account with this email already exists', 409);
+  if (existingUser) {
+    throw new AppError('An account with this email already exists', 409);
+  }
 
   const rawToken = createRawToken();
   const user = await User.create({
-    name: name.trim(),
+    name,
     email: normalizedEmail,
     password,
-    emailVerified: false,
+    isEmailVerified: false,
     emailVerificationToken: hashToken(rawToken),
-    emailVerificationExpires: new Date(Date.now() + TOKEN_MINUTES * 60 * 1000),
+    emailVerificationExpires: new Date(Date.now() + VERIFICATION_HOURS * 60 * 60 * 1000),
   });
 
   try {
     await sendVerificationEmail(user, rawToken);
   } catch (error) {
     await User.deleteOne({ _id: user._id });
+    if (error.code === 'EMAIL_CONFIG_MISSING') {
+      throw new AppError('Verification email is not configured on the server', 503);
+    }
     throw new AppError('Account could not be created because the verification email could not be sent. Please try again later.', 503);
   }
 
   res.status(201).json({
     success: true,
-    message: 'Registration successful. Please check your email to verify your account.',
-    data: userData(user),
+    message: 'Account created. Please check your email to verify your account.',
+    data: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      isEmailVerified: false,
+    },
   });
 });
 
-export const loginUser = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) throw new AppError('Email and password are required', 400);
-
-  const user = await User.findOne({ email: email.toLowerCase().trim() }).select('+password +emailVerificationToken +emailVerificationExpires');
-  if (!user || !(await user.matchPassword(password))) throw new AppError('Invalid email or password', 401);
-  if (!user.isActive) throw new AppError('This account has been deactivated', 403);
-  if (user.emailVerified === false) throw new AppError('Please verify your email before signing in', 403);
-
-  generateToken(res, user._id);
-  res.status(200).json({ success: true, data: userData(user) });
-});
-
-export const getMe = asyncHandler(async (req, res) => {
-  res.status(200).json({ success: true, data: userData(req.user) });
-});
-
-export const logoutUser = asyncHandler(async (req, res) => {
-  const isProduction = process.env.NODE_ENV === 'production';
-  res.clearCookie('token', {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: isProduction ? 'none' : 'lax',
-    path: '/',
-  });
-  res.status(200).json({ success: true, message: 'Logged out successfully' });
-});
-
+/**
+ * @desc    Verify a user's email address
+ * @route   GET /api/auth/verify-email?token=...
+ * @access  Public
+ */
 export const verifyEmail = asyncHandler(async (req, res) => {
-  const { token } = req.body;
+  const { token } = req.query;
   if (!token) throw new AppError('Verification token is required', 400);
 
   const user = await User.findOne({
@@ -99,9 +80,11 @@ export const verifyEmail = asyncHandler(async (req, res) => {
     emailVerificationExpires: { $gt: new Date() },
   }).select('+emailVerificationToken +emailVerificationExpires');
 
-  if (!user) throw new AppError('Verification link is invalid or expired', 400);
+  if (!user) {
+    throw new AppError('This verification link is invalid or has expired', 400);
+  }
 
-  user.emailVerified = true;
+  user.isEmailVerified = true;
   user.emailVerificationToken = undefined;
   user.emailVerificationExpires = undefined;
   await user.save({ validateBeforeSave: false });
@@ -109,71 +92,191 @@ export const verifyEmail = asyncHandler(async (req, res) => {
   res.status(200).json({ success: true, message: 'Email verified successfully. You can now sign in.' });
 });
 
-export const resendVerificationEmail = asyncHandler(async (req, res) => {
-  const { email } = req.body;
-  if (!email) throw new AppError('Email is required', 400);
+/**
+ * @desc    Resend verification email
+ * @route   POST /api/auth/resend-verification
+ * @access  Public
+ */
+export const resendVerification = asyncHandler(async (req, res) => {
+  const normalizedEmail = req.body.email?.toLowerCase().trim();
+  const genericMessage = 'If an unverified account exists for this email, a verification email has been sent.';
 
-  const user = await User.findOne({ email: email.toLowerCase().trim() }).select('+emailVerificationToken +emailVerificationExpires');
-  if (!user || user.emailVerified !== false) {
-    return res.status(200).json({ success: true, message: 'If an unverified account exists for that email, a verification email has been sent.' });
+  if (!normalizedEmail) {
+    return res.status(200).json({ success: true, message: genericMessage });
+  }
+
+  const user = await User.findOne({ email: normalizedEmail });
+  if (!user || user.isEmailVerified || !user.isActive) {
+    return res.status(200).json({ success: true, message: genericMessage });
   }
 
   const rawToken = createRawToken();
   user.emailVerificationToken = hashToken(rawToken);
-  user.emailVerificationExpires = new Date(Date.now() + TOKEN_MINUTES * 60 * 1000);
+  user.emailVerificationExpires = new Date(Date.now() + VERIFICATION_HOURS * 60 * 60 * 1000);
   await user.save({ validateBeforeSave: false });
-  await sendVerificationEmail(user, rawToken);
 
-  res.status(200).json({ success: true, message: 'Verification email sent.' });
+  try {
+    await sendVerificationEmail(user, rawToken);
+  } catch (error) {
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpires = undefined;
+    await user.save({ validateBeforeSave: false });
+    if (error.code === 'EMAIL_CONFIG_MISSING') {
+      throw new AppError('Verification email is not configured on the server', 503);
+    }
+    throw new AppError('Verification email could not be sent. Please try again later.', 503);
+  }
+
+  res.status(200).json({ success: true, message: genericMessage });
 });
 
-export const forgotPassword = asyncHandler(async (req, res) => {
-  const { email } = req.body;
-  if (!email) throw new AppError('Email is required', 400);
+/**
+ * @desc    Authenticate user & set JWT cookie
+ * @route   POST /api/auth/login
+ * @access  Public
+ */
+export const loginUser = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+  const normalizedEmail = email?.toLowerCase().trim();
 
-  const user = await User.findOne({ email: email.toLowerCase().trim() }).select('+passwordResetToken +passwordResetExpires');
-  const genericMessage = 'If an account exists for that email, a password reset link has been sent.';
-  if (!user) return res.status(200).json({ success: true, message: genericMessage });
+  if (!normalizedEmail || !password) {
+    throw new AppError('Email and password are required', 400);
+  }
+
+  const user = await User.findOne({ email: normalizedEmail }).select('+password');
+
+  if (!user || !(await user.matchPassword(password))) {
+    throw new AppError('Invalid email or password', 401);
+  }
+
+  if (!user.isActive) {
+    throw new AppError('This account has been deactivated', 403);
+  }
+
+  if (!user.isEmailVerified) {
+    throw new AppError('Please verify your email before logging in', 403);
+  }
+
+  generateToken(res, user._id);
+
+  res.status(200).json({
+    success: true,
+    data: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      isEmailVerified: user.isEmailVerified,
+    },
+  });
+});
+
+/**
+ * @desc    Send a password reset email
+ * @route   POST /api/auth/forgot-password
+ * @access  Public
+ */
+export const forgotPassword = asyncHandler(async (req, res) => {
+  const normalizedEmail = req.body.email?.toLowerCase().trim();
+  const genericMessage = 'If an account exists for this email, a password reset link has been sent.';
+
+  if (!normalizedEmail) {
+    return res.status(200).json({ success: true, message: genericMessage });
+  }
+
+  const user = await User.findOne({ email: normalizedEmail });
+  if (!user || !user.isActive) {
+    return res.status(200).json({ success: true, message: genericMessage });
+  }
 
   const rawToken = createRawToken();
   user.passwordResetToken = hashToken(rawToken);
-  user.passwordResetExpires = new Date(Date.now() + 30 * 60 * 1000);
+  user.passwordResetExpires = new Date(Date.now() + RESET_MINUTES * 60 * 1000);
   await user.save({ validateBeforeSave: false });
 
-  const url = `${FRONTEND_URL()}/reset-password?token=${encodeURIComponent(rawToken)}`;
+  const resetUrl = `${FRONTEND_URL()}/reset-password?token=${encodeURIComponent(rawToken)}`;
+  const email = buildPasswordResetEmail({ name: user.name, resetUrl });
+
   try {
-    await sendEmail({
-      to: user.email,
-      subject: 'Reset your SmartDokan password',
-      text: `Hi ${user.name}, reset your SmartDokan password: ${url}. This link expires in 30 minutes.`,
-      html: `<p>Hi ${user.name},</p><p>Reset your SmartDokan password using the link below.</p><p><a href="${url}">Reset password</a></p><p>This link expires in 30 minutes.</p>`,
-    });
+    await sendEmail({ to: user.email, ...email });
   } catch (error) {
     user.passwordResetToken = undefined;
     user.passwordResetExpires = undefined;
     await user.save({ validateBeforeSave: false });
+    if (error.code === 'EMAIL_CONFIG_MISSING') {
+      throw new AppError('Password reset email is not configured on the server', 503);
+    }
     throw new AppError('Password reset email could not be sent. Please try again later.', 503);
   }
 
   res.status(200).json({ success: true, message: genericMessage });
 });
 
+/**
+ * @desc    Reset password using a one-time token
+ * @route   POST /api/auth/reset-password
+ * @access  Public
+ */
 export const resetPassword = asyncHandler(async (req, res) => {
   const { token, password } = req.body;
-  if (!token || !password) throw new AppError('Reset token and new password are required', 400);
-  if (password.length < 6) throw new AppError('Password must be at least 6 characters', 400);
+
+  if (!token || !password) {
+    throw new AppError('Reset token and new password are required', 400);
+  }
+
+  if (password.length < 6) {
+    throw new AppError('Password must be at least 6 characters', 400);
+  }
 
   const user = await User.findOne({
     passwordResetToken: hashToken(token),
     passwordResetExpires: { $gt: new Date() },
   }).select('+passwordResetToken +passwordResetExpires');
 
-  if (!user) throw new AppError('Password reset link is invalid or expired', 400);
+  if (!user) {
+    throw new AppError('This password reset link is invalid or has expired', 400);
+  }
 
   user.password = password;
   user.passwordResetToken = undefined;
   user.passwordResetExpires = undefined;
   await user.save();
 
-  res.status(200).json({ success: true, message: 'Password reset successful. You can now sign in.' });
+  res.status(200).json({ success: true, message: 'Password reset successfully. You can now sign in.' });
+});
+
+/**
+ * @desc    Get currently authenticated user's profile
+ * @route   GET /api/auth/me
+ * @access  Private
+ */
+export const getMe = asyncHandler(async (req, res) => {
+  res.status(200).json({
+    success: true,
+    data: {
+      id: req.user._id,
+      name: req.user.name,
+      email: req.user.email,
+      role: req.user.role,
+      isActive: req.user.isActive,
+      isEmailVerified: req.user.isEmailVerified,
+    },
+  });
+});
+
+/**
+ * @desc    Log the user out by clearing the auth cookie
+ * @route   POST /api/auth/logout
+ * @access  Private
+ */
+export const logoutUser = asyncHandler(async (req, res) => {
+  res.cookie('token', '', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    expires: new Date(0),
+    maxAge: 0,
+  });
+
+  res.status(200).json({ success: true, message: 'Logged out successfully' });
 });

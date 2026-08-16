@@ -38,7 +38,8 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
-    emailVerified: {
+    // Existing users remain usable; newly registered users explicitly set this to false.
+    isEmailVerified: {
       type: Boolean,
       default: true,
     },
