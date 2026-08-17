@@ -31,6 +31,12 @@ const Login = () => {
         <h1 className="mb-1 text-2xl font-semibold text-slate-900">Sign in</h1>
         <p className="mb-6 text-sm text-slate-500">Welcome back to SmartDokan</p>
 
+        {location.state?.justRegistered && (
+          <div className="mb-4 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            Account created successfully. You can sign in now.
+          </div>
+        )}
+
         {error && (
           <div className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">
             {error}

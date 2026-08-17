@@ -17,7 +17,7 @@ const Register = () => {
     setError('');
     try {
       await register(form);
-      navigate(`/verify-email?email=${encodeURIComponent(form.email)}`, { replace: true });
+      navigate('/login', { replace: true, state: { justRegistered: true } });
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed. Please try again.');
     }

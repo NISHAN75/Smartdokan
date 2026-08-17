@@ -3,26 +3,16 @@ import AppError from '../utils/AppError.js';
 import generateToken, { clearAuthCookie } from '../utils/generateToken.js';
 import User from '../models/User.js';
 import { createRawToken, hashToken } from '../utils/authTokens.js';
-import { buildPasswordResetEmail, buildVerificationEmail, sendEmail } from '../utils/email.js';
+import { buildPasswordResetEmail, sendEmail } from '../utils/email.js';
 
 const FRONTEND_URL = () => (process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/$/, '');
-const VERIFICATION_HOURS = 24;
 const RESET_MINUTES = 30;
-
-const sendVerificationEmail = async (user, rawToken) => {
-  const verificationUrl = `${FRONTEND_URL()}/verify-email?token=${encodeURIComponent(rawToken)}`;
-  const email = buildVerificationEmail({ name: user.name, verificationUrl });
-  return sendEmail({ to: user.email, ...email });
-};
 
 // Logs enough to diagnose an email-send failure (which operation, the
 // recipient, the provider's error code/message/status) without ever
-// logging the API key, the raw verification/reset token, or a
-// password. error.providerResponse (when present) is Resend's own
-// JSON error body describing *why* it rejected the request (e.g. a
-// sandbox-sender restriction) — exactly the detail needed to diagnose
-// "works when I test it manually but fails from the app" — which was
-// previously being silently discarded instead of logged anywhere.
+// logging the API key, the raw reset token, or a password.
+// error.providerResponse (when present) is Resend's own JSON error
+// body describing *why* it rejected the request.
 const logEmailFailure = (context, recipientEmail, error) => {
   console.error(`[email:${context}] failed to send to ${recipientEmail}`, {
     code: error.code,
@@ -32,7 +22,11 @@ const logEmailFailure = (context, recipientEmail, error) => {
 };
 
 /**
- * @desc    Register a new user
+ * @desc    Register a new user. Accounts are immediately usable — no
+ *          email verification step (removed by design: this app's
+ *          real onboarding path is admin -> User Management for
+ *          staff/manager accounts, which were already auto-active;
+ *          public self-registration now behaves the same way).
  * @route   POST /api/auth/register
  * @access  Public
  */
@@ -49,103 +43,22 @@ export const registerUser = asyncHandler(async (req, res) => {
     throw new AppError('An account with this email already exists', 409);
   }
 
-  const rawToken = createRawToken();
   const user = await User.create({
     name,
     email: normalizedEmail,
     password,
-    isEmailVerified: false,
-    emailVerificationToken: hashToken(rawToken),
-    emailVerificationExpires: new Date(Date.now() + VERIFICATION_HOURS * 60 * 60 * 1000),
   });
-
-  try {
-    await sendVerificationEmail(user, rawToken);
-  } catch (error) {
-    await User.deleteOne({ _id: user._id });
-    logEmailFailure('registration-verification', user.email, error);
-    if (error.code === 'EMAIL_CONFIG_MISSING') {
-      throw new AppError('Verification email is not configured on the server', 503);
-    }
-    throw new AppError('Account could not be created because the verification email could not be sent. Please try again later.', 503);
-  }
 
   res.status(201).json({
     success: true,
-    message: 'Account created. Please check your email to verify your account.',
+    message: 'Account created. You can now sign in.',
     data: {
       id: user._id,
       name: user.name,
       email: user.email,
       role: user.role,
-      isEmailVerified: false,
     },
   });
-});
-
-/**
- * @desc    Verify a user's email address
- * @route   GET /api/auth/verify-email?token=...
- * @access  Public
- */
-export const verifyEmail = asyncHandler(async (req, res) => {
-  const { token } = req.query;
-  if (!token) throw new AppError('Verification token is required', 400);
-
-  const user = await User.findOne({
-    emailVerificationToken: hashToken(token),
-    emailVerificationExpires: { $gt: new Date() },
-  }).select('+emailVerificationToken +emailVerificationExpires');
-
-  if (!user) {
-    throw new AppError('This verification link is invalid or has expired', 400);
-  }
-
-  user.isEmailVerified = true;
-  user.emailVerificationToken = undefined;
-  user.emailVerificationExpires = undefined;
-  await user.save({ validateBeforeSave: false });
-
-  res.status(200).json({ success: true, message: 'Email verified successfully. You can now sign in.' });
-});
-
-/**
- * @desc    Resend verification email
- * @route   POST /api/auth/resend-verification
- * @access  Public
- */
-export const resendVerification = asyncHandler(async (req, res) => {
-  const normalizedEmail = req.body.email?.toLowerCase().trim();
-  const genericMessage = 'If an unverified account exists for this email, a verification email has been sent.';
-
-  if (!normalizedEmail) {
-    return res.status(200).json({ success: true, message: genericMessage });
-  }
-
-  const user = await User.findOne({ email: normalizedEmail });
-  if (!user || user.isEmailVerified || !user.isActive) {
-    return res.status(200).json({ success: true, message: genericMessage });
-  }
-
-  const rawToken = createRawToken();
-  user.emailVerificationToken = hashToken(rawToken);
-  user.emailVerificationExpires = new Date(Date.now() + VERIFICATION_HOURS * 60 * 60 * 1000);
-  await user.save({ validateBeforeSave: false });
-
-  try {
-    await sendVerificationEmail(user, rawToken);
-  } catch (error) {
-    user.emailVerificationToken = undefined;
-    user.emailVerificationExpires = undefined;
-    await user.save({ validateBeforeSave: false });
-    logEmailFailure('resend-verification', user.email, error);
-    if (error.code === 'EMAIL_CONFIG_MISSING') {
-      throw new AppError('Verification email is not configured on the server', 503);
-    }
-    throw new AppError('Verification email could not be sent. Please try again later.', 503);
-  }
-
-  res.status(200).json({ success: true, message: genericMessage });
 });
 
 /**
@@ -171,10 +84,6 @@ export const loginUser = asyncHandler(async (req, res) => {
     throw new AppError('This account has been deactivated', 403);
   }
 
-  if (!user.isEmailVerified) {
-    throw new AppError('Please verify your email before logging in', 403);
-  }
-
   generateToken(res, user._id);
 
   res.status(200).json({
@@ -184,13 +93,13 @@ export const loginUser = asyncHandler(async (req, res) => {
       name: user.name,
       email: user.email,
       role: user.role,
-      isEmailVerified: user.isEmailVerified,
     },
   });
 });
 
 /**
- * @desc    Send a password reset email
+ * @desc    Send a password reset email. Unrelated to email
+ *          verification (kept as-is — separate feature).
  * @route   POST /api/auth/forgot-password
  * @access  Public
  */
@@ -278,7 +187,6 @@ export const getMe = asyncHandler(async (req, res) => {
       email: req.user.email,
       role: req.user.role,
       isActive: req.user.isActive,
-      isEmailVerified: req.user.isEmailVerified,
     },
   });
 });
